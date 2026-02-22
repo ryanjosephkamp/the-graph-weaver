@@ -708,19 +708,19 @@ def page_k_slider() -> None:
 
     _init_shared_state()
 
-    # Protein selector in sidebar
-    st.sidebar.markdown("### Protein Structure")
+    # Protein selector in sidebar (shared keys so selection persists across pages)
+    st.sidebar.markdown("### Graph Parameters")
     protein_name = st.sidebar.selectbox(
-        "Protein",
+        "Protein Structure",
         _protein_options(),
-        key="sweep_protein",
+        key="shared_protein",
         help="Choose a preset protein (or your uploaded PDB) for the k-sweep.",
     )
 
     cutoff = st.sidebar.slider(
         "Distance cutoff (Å)",
-        5.0, 30.0, value=DEFAULT_DISTANCE_CUTOFF, step=0.5,
-        key="sweep_cutoff",
+        5.0, 30.0, step=0.5,
+        key="shared_cutoff",
         help="Maximum edge distance.",
     )
 
@@ -935,15 +935,31 @@ def page_contact_map() -> None:
   Density = E / (N × (N−1)). Protein graphs are typically sparse.
         """)
 
+    # Maximum residues for N×N heatmaps before hitting Streamlit's
+    # message-size limit (~200 MB).  A 500×500 heatmap is safe;
+    # larger proteins would produce multi-hundred-MB payloads.
+    _MAX_HEATMAP_N = 500
+
     st.markdown("---")
 
     # ── Adjacency Matrix ──
     st.markdown("### Adjacency Matrix")
-    fig_adj = PlotlyRenderer.adjacency_heatmap(
-        graph,
-        title=f"Adjacency Matrix — {params['protein']} (k={params['k']})",
-    )
-    st.plotly_chart(fig_adj, use_container_width=True)
+    if analysis.statistics.n_nodes <= _MAX_HEATMAP_N:
+        fig_adj = PlotlyRenderer.adjacency_heatmap(
+            graph,
+            title=f"Adjacency Matrix — {params['protein']} (k={params['k']})",
+        )
+        st.plotly_chart(fig_adj, use_container_width=True)
+    else:
+        st.warning(
+            f"⚠️ The adjacency matrix is too large to display for this "
+            f"protein ({analysis.statistics.n_nodes} residues). "
+            f"The N×N heatmap ({analysis.statistics.n_nodes}×"
+            f"{analysis.statistics.n_nodes} = "
+            f"{analysis.statistics.n_nodes**2:,} cells) would exceed "
+            f"Streamlit's message-size limit. Try a smaller protein "
+            f"(≤{_MAX_HEATMAP_N} residues) or use one of the preset structures."
+        )
 
     with st.expander("ℹ️ Reading the Adjacency Matrix"):
         st.markdown("""
@@ -965,11 +981,22 @@ The **adjacency matrix** A is an N×N binary matrix where:
 
     # ── Contact Map ──
     st.markdown("### Contact Map (sequence distance)")
-    fig_cmap = PlotlyRenderer.contact_map(
-        graph,
-        title=f"Contact Map — {params['protein']}",
-    )
-    st.plotly_chart(fig_cmap, use_container_width=True)
+    if analysis.statistics.n_nodes <= _MAX_HEATMAP_N:
+        fig_cmap = PlotlyRenderer.contact_map(
+            graph,
+            title=f"Contact Map — {params['protein']}",
+        )
+        st.plotly_chart(fig_cmap, use_container_width=True)
+    else:
+        st.warning(
+            f"⚠️ The contact map is too large to display for this "
+            f"protein ({analysis.statistics.n_nodes} residues). "
+            f"The N×N heatmap ({analysis.statistics.n_nodes}×"
+            f"{analysis.statistics.n_nodes} = "
+            f"{analysis.statistics.n_nodes**2:,} cells) would exceed "
+            f"Streamlit's message-size limit. Try a smaller protein "
+            f"(≤{_MAX_HEATMAP_N} residues) or use one of the preset structures."
+        )
 
     with st.expander("ℹ️ Reading the Contact Map"):
         st.markdown("""
@@ -1071,17 +1098,17 @@ def page_protein_comparison() -> None:
 
     _init_shared_state()
 
-    st.sidebar.markdown("### Comparison Parameters")
+    st.sidebar.markdown("### Graph Parameters")
     k = st.sidebar.slider(
         "k (neighbors)",
-        2, 30, value=DEFAULT_K, step=1,
-        key="compare_k",
+        2, 30, step=1,
+        key="shared_k",
         help="k-NN parameter for all proteins.",
     )
     cutoff = st.sidebar.slider(
         "Distance cutoff (Å)",
-        5.0, 30.0, value=DEFAULT_DISTANCE_CUTOFF, step=0.5,
-        key="compare_cutoff",
+        5.0, 30.0, step=0.5,
+        key="shared_cutoff",
         help="Edge distance cutoff.",
     )
 
